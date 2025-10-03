@@ -1,0 +1,14 @@
+[
+  {
+    "key": "1",
+    "timekey": "1w",
+    "status": "active",
+    "hwid": ""
+  },
+  {
+    "key": "1",
+    "timekey": "1m",
+    "status": "inactive",
+    "hwid": ""
+  }
+]

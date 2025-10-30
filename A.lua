@@ -83,6 +83,94 @@ local function v(w)
 end
 
 function c:k(x)
+    while true do
+        local y = self.d .. x .. "?api_key=" .. self.e
+        
+        local n, z = pcall(function()
+            return game:HttpGet(y)
+        end)
+        
+        if not n then
+            task.wait(1)
+            continue
+        end
+        
+        local success, A = pcall(function()
+            return a:JSONDecode(z)
+        end)
+        
+        if not success then
+            task.wait(1)
+            continue
+        end
+        
+        if A and A.Amount and A.Amount > 0 and A.JobId then
+            for _, B in ipairs(A.JobId) do
+                if B.Jobid then
+                    local C = p(B.Jobid)
+                    
+                    if C then
+                        if v(C) then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+        
+        task.wait(1)
+    end
+end
+
+return clocal function p(q)
+    if string.sub(q, 1, 8) ~= "Crystal_" then
+        return q
+    end
+    
+    local r = string.sub(q, 9)
+    local n, s = k(r)
+    
+    if not n then
+        return nil
+    end
+    
+    local t = g(s)
+    
+    if #t < 32 then
+        t = t .. string.rep("0", 32 - #t)
+    end
+    
+    t = string.sub(t, 1, 32)
+    
+    local u = string.format("%s-%s-%s-%s-%s",
+        string.sub(t, 1, 8),
+        string.sub(t, 9, 12),
+        string.sub(t, 13, 16),
+        string.sub(t, 17, 20),
+        string.sub(t, 21, 32)
+    )
+    
+    return u
+end
+
+local function v(w)
+    if c.f then
+        return false
+    end
+    
+    c.f = true
+    
+    local n = pcall(function()
+        b:FindFirstChild("__ServerBrowser"):InvokeServer("teleport", w)
+    end)
+    
+    task.wait(1)
+    c.f = false
+    
+    return n
+end
+
+function c:k(x)
     print("[HOP] Starting search for:", x)
     
     while true do

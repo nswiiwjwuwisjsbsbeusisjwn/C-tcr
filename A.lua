@@ -15,8 +15,8 @@ local function decodeCrystalID(crystalId)
     end
     
     -- Remove Crystal_ prefix
-    if string.find(crystalId, "Crystal_") or string.find(crystalId, "Crystall_") then
-        local hexPart = string.gsub(crystalId, "Crystal[l]?_", "")
+    if string.find(crystalId, "Crystal_") then
+        local hexPart = string.gsub(crystalId, "Crystal_", "")
         
         -- Convert hex to ASCII (Job ID)
         local ascii = ""
@@ -62,7 +62,7 @@ function HopAPI:Hop(input)
     end
     
     -- Nếu là Crystal ID trực tiếp
-    if string.find(input, "Crystal_") or string.find(input, "Crystall_") then
+    if string.find(input, "Crystal_") then
         local decodedJobId = decodeCrystalID(input)
         if decodedJobId then
             return teleportToJob(decodedJobId)
@@ -70,11 +70,12 @@ function HopAPI:Hop(input)
         return false
     end
     
-    -- Nếu có tên ví (fullmoon, mirage, etc)
-    local walletName = string.lower(input)
+    -- Nếu là category (fullmoon, mirage, etc)
+    local category = string.lower(input)
     
     while true do
-        local url = self.BaseURL .. "?api_key=" .. self.APIKey
+        -- Call API với category
+        local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
         
         local success, response = pcall(function()
             return game:HttpGet(url, true)
@@ -86,20 +87,18 @@ function HopAPI:Hop(input)
             end)
             
             if decodeSuccess and data and data.Amount and data.Amount > 0 and data.JobId then
+                -- Loop qua tất cả JobId
                 for _, job in ipairs(data.JobId) do
-                    if job.Jobid and job.name then
-                        local jobName = string.lower(job.name)
+                    if job.Jobid then
+                        -- Decode Crystal ID
+                        local decodedJobId = decodeCrystalID(job.Jobid)
                         
-                        -- Check nếu tên server chứa tên ví
-                        if string.find(jobName, walletName) then
-                            local decodedJobId = decodeCrystalID(job.Jobid)
-                            
-                            if decodedJobId then
-                                if teleportToJob(decodedJobId) then
-                                    return true
-                                end
-                                task.wait(1)
+                        if decodedJobId then
+                            -- Teleport
+                            if teleportToJob(decodedJobId) then
+                                return true
                             end
+                            task.wait(1)
                         end
                     end
                 end

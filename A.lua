@@ -1,10 +1,12 @@
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 
 local HopAPI = {}
 HopAPI.BaseURL = "http://fi7.bot-hosting.net:2022/api/"
 HopAPI.APIKey = "Cat"
 HopAPI.IsHopping = false
+HopAPI.PlaceId = game.PlaceId
 
 local function StringToHex(str)
     local hex = ""
@@ -35,6 +37,10 @@ local function Base64Decode(input)
 end
 
 local function DecodeCrystalID(crystalId)
+    if not crystalId or type(crystalId) ~= "string" then
+        return nil
+    end
+    
     if string.sub(crystalId, 1, 8) ~= "Crystal_" then
         return crystalId
     end
@@ -42,7 +48,7 @@ local function DecodeCrystalID(crystalId)
     local base64Part = string.sub(crystalId, 9)
     local success, decoded = Base64Decode(base64Part)
     
-    if not success then
+    if not success or not decoded then
         return nil
     end
     
@@ -52,7 +58,7 @@ local function DecodeCrystalID(crystalId)
         hexString = hexString .. string.rep("0", 32 - #hexString)
     end
     
-    hexString = string.sub(hexString, 1, 32)
+    hexString = string.sub(hexString, 1, 32):lower()
     
     local uuid = string.format("%s-%s-%s-%s-%s",
         string.sub(hexString, 1, 8),
@@ -70,120 +76,74 @@ local function TeleportToJob(jobId)
         return false
     end
     
+    if not jobId or jobId == "" then
+        return false
+    end
+    
     HopAPI.IsHopping = true
     
-    local success = pcall(function()
-        ReplicatedStorage:FindFirstChild("__ServerBrowser"):InvokeServer("teleport", jobId)
+    local success1 = pcall(function()
+        local serverBrowser = ReplicatedStorage:FindFirstChild("__ServerBrowser")
+        if serverBrowser then
+            serverBrowser:InvokeServer("teleport", jobId)
+        end
     end)
     
-    task.wait(1)
-    HopAPI.IsHopping = false
+    if success1 then
+        task.wait(2)
+        HopAPI.IsHopping = false
+        return true
+    end
     
-    return success
+    local success2 = pcall(function()
+        TeleportService:TeleportToPlaceInstance(HopAPI.PlaceId, jobId, game.Players.LocalPlayer)
+    end)
+    
+    task.wait(2)
+    HopAPI.IsHopping = false
+    return success2
 end
 
-function HopAPI:Hop(category)
+function HopAPI:Hop(input)
+    if string.sub(input, 1, 8) == "Crystal_" then
+        local decodedJobId = DecodeCrystalID(input)
+        if decodedJobId then
+            return TeleportToJob(decodedJobId)
+        end
+        return false
+    end
+    
+    local category = string.lower(input)
+    
     while true do
         local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
         
         local success, response = pcall(function()
-            return game:HttpGet(url)
+            return game:HttpGet(url, true)
         end)
         
-        if not success then
-            task.wait(2)
-        else
+        if success then
             local decodeSuccess, data = pcall(function()
                 return HttpService:JSONDecode(response)
             end)
             
-            if not decodeSuccess then
-                task.wait(2)
-            else
-                if data and data.Amount and data.Amount > 0 and data.Jobs then
-                    for _, job in ipairs(data.Jobs) do
-                        if job.Jobid then
-                            local decodedJobId = DecodeCrystalID(job.Jobid)
-                            
-                            if decodedJobId then
-                                print("[Crystal Hop] Players:", job.Players or "?/12")
-                                print("[Crystal Hop] Jobid:", decodedJobId)
-                                
-                                if TeleportToJob(decodedJobId) then
-                                    return true
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                task.wait(2)
-            end
-        end
-    end
-end
-
-function HopAPI:HopLatest(category)
-    while true do
-        local url = self.BaseURL .. category .. "/latest?api_key=" .. self.APIKey
-        
-        local success, response = pcall(function()
-            return game:HttpGet(url)
-        end)
-        
-        if not success then
-            task.wait(2)
-        else
-            local decodeSuccess, data = pcall(function()
-                return HttpService:JSONDecode(response)
-            end)
-            
-            if not decodeSuccess then
-                task.wait(2)
-            else
-                if data and data.Jobs and #data.Jobs > 0 then
-                    local job = data.Jobs[1]
-                    
+            if decodeSuccess and data and data.Amount and data.Amount > 0 and data.JobId then
+                for _, job in ipairs(data.JobId) do
                     if job.Jobid then
                         local decodedJobId = DecodeCrystalID(job.Jobid)
-                        
                         if decodedJobId then
-                            print("[Crystal Hop] Players:", job.Players or "?/12")
-                            print("[Crystal Hop] Jobid:", decodedJobId)
-                            
                             if TeleportToJob(decodedJobId) then
                                 return true
                             end
+                            task.wait(1)
                         end
                     end
                 end
-                
-                task.wait(2)
             end
         end
+        
+        task.wait(2)
     end
-end
-
-function HopAPI:GetJobs(category)
-    local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
-    
-    local success, response = pcall(function()
-        return game:HttpGet(url)
-    end)
-    
-    if not success then
-        return nil
-    end
-    
-    local decodeSuccess, data = pcall(function()
-        return HttpService:JSONDecode(response)
-    end)
-    
-    if not decodeSuccess then
-        return nil
-    end
-    
-    return data
 end
 
 return HopAPI

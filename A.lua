@@ -1,10 +1,10 @@
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local API = {}
-API.URL = "http://fi7.bot-hosting.net:21258/api/"
-API.KEY = "Cat"
-API.IsHopping = false
+local HopAPI = {}
+HopAPI.BaseURL = "http://fi7.bot-hosting.net:2022/api/"
+HopAPI.APIKey = "Cat"
+HopAPI.IsHopping = false
 
 local function StringToHex(str)
     local hex = ""
@@ -14,27 +14,216 @@ local function StringToHex(str)
     return hex
 end
 
-local function DecodeBase64(encoded)
-    encoded = string.gsub(encoded, "-", "+")
-    encoded = string.gsub(encoded, "_", "/")
+local function Base64Decode(input)
+    input = string.gsub(input, "-", "+")
+    input = string.gsub(input, "_", "/")
     
-    local padding = #encoded % 4
+    local padding = #input % 4
     if padding > 0 then
-        encoded = encoded .. string.rep("=", 4 - padding)
+        input = input .. string.rep("=", 4 - padding)
     end
     
-    local success, decoded = pcall(function()
-        return HttpService:Base64Decode(encoded)
+    local success, result = pcall(function()
+        return HttpService:Base64Decode(input)
     end)
     
-    if success then
-        return decoded
+    if not success then
+        return false, nil
     end
     
-    return nil
+    return true, result
 end
 
-local function DecodeCrystalJob(crystalJob)
+local function DecodeCrystalID(crystalId)
+    if string.sub(crystalId, 1, 8) ~= "Crystal_" then
+        return crystalId
+    end
+    
+    local base64Part = string.sub(crystalId, 9)
+    local success, decoded = Base64Decode(base64Part)
+    
+    if not success then
+        return nil
+    end
+    
+    local hexString = StringToHex(decoded)
+    
+    if #hexString < 32 then
+        hexString = hexString .. string.rep("0", 32 - #hexString)
+    end
+    
+    hexString = string.sub(hexString, 1, 32)
+    
+    local uuid = string.format("%s-%s-%s-%s-%s",
+        string.sub(hexString, 1, 8),
+        string.sub(hexString, 9, 12),
+        string.sub(hexString, 13, 16),
+        string.sub(hexString, 17, 20),
+        string.sub(hexString, 21, 32)
+    )
+    
+    return uuid
+end
+
+local function TeleportToJob(jobId)
+    if HopAPI.IsHopping then
+        return false
+    end
+    
+    HopAPI.IsHopping = true
+    
+    local success = pcall(function()
+        ReplicatedStorage:FindFirstChild("__ServerBrowser"):InvokeServer("teleport", jobId)
+    end)
+    
+    task.wait(1)
+    HopAPI.IsHopping = false
+    
+    return success
+end
+
+function HopAPI:Hop(category)
+    print("[Crystal Hop] Starting search for:", category)
+    
+    while true do
+        local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
+        
+        local success, response = pcall(function()
+            return game:HttpGet(url)
+        end)
+        
+        if not success then
+            print("[Crystal Hop] API Error, retrying in 1s...")
+            task.wait(1)
+            continue
+        end
+        
+        local decodeSuccess, data = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        
+        if not decodeSuccess then
+            print("[Crystal Hop] JSON Error, retrying in 1s...")
+            task.wait(1)
+            continue
+        end
+        
+        if data and data.Amount and data.Amount > 0 and data.Jobs then
+            print("[Crystal Hop] Found", data.Amount, "jobs in", category)
+            
+            for _, job in ipairs(data.Jobs) do
+                if job.Jobid then
+                    local decodedJobId = DecodeCrystalID(job.Jobid)
+                    
+                    if decodedJobId then
+                        print("[Crystal Hop] ================")
+                        print("[Crystal Hop] Category:", job.name or category)
+                        print("[Crystal Hop] Players:", job.Players or "Unknown")
+                        print("[Crystal Hop] Crystal ID:", job.Jobid)
+                        print("[Crystal Hop] Decoded UUID:", decodedJobId)
+                        print("[Crystal Hop] ================")
+                        
+                        if TeleportToJob(decodedJobId) then
+                            print("[Crystal Hop] ✓ Teleport Success!")
+                            return true
+                        else
+                            print("[Crystal Hop] ✗ Teleport Failed, trying next job...")
+                        end
+                    else
+                        print("[Crystal Hop] ✗ Failed to decode:", job.Jobid)
+                    end
+                end
+            end
+        else
+            print("[Crystal Hop] No jobs available, waiting 2s...")
+        end
+        
+        task.wait(2)
+    end
+end
+
+function HopAPI:HopLatest(category)
+    print("[Crystal Hop] Getting latest job for:", category)
+    
+    while true do
+        local url = self.BaseURL .. category .. "/latest?api_key=" .. self.APIKey
+        
+        local success, response = pcall(function()
+            return game:HttpGet(url)
+        end)
+        
+        if not success then
+            print("[Crystal Hop] API Error, retrying in 1s...")
+            task.wait(1)
+            continue
+        end
+        
+        local decodeSuccess, data = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        
+        if not decodeSuccess then
+            print("[Crystal Hop] JSON Error, retrying in 1s...")
+            task.wait(1)
+            continue
+        end
+        
+        if data and data.Jobs and #data.Jobs > 0 then
+            local job = data.Jobs[1]
+            
+            if job.Jobid then
+                local decodedJobId = DecodeCrystalID(job.Jobid)
+                
+                if decodedJobId then
+                    print("[Crystal Hop] ================")
+                    print("[Crystal Hop] Latest Job Found!")
+                    print("[Crystal Hop] Category:", job.name or category)
+                    print("[Crystal Hop] Players:", job.Players or "Unknown")
+                    print("[Crystal Hop] Crystal ID:", job.Jobid)
+                    print("[Crystal Hop] Decoded UUID:", decodedJobId)
+                    print("[Crystal Hop] ================")
+                    
+                    if TeleportToJob(decodedJobId) then
+                        print("[Crystal Hop] ✓ Teleport Success!")
+                        return true
+                    else
+                        print("[Crystal Hop] ✗ Teleport Failed, retrying...")
+                    end
+                else
+                    print("[Crystal Hop] ✗ Failed to decode:", job.Jobid)
+                end
+            end
+        else
+            print("[Crystal Hop] No jobs available, waiting 2s...")
+        end
+        
+        task.wait(2)
+    end
+end
+
+function HopAPI:GetJobs(category)
+    local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
+    
+    local success, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+    
+    if not success then
+        return nil
+    end
+    
+    local decodeSuccess, data = pcall(function()
+        return HttpService:JSONDecode(response)
+    end)
+    
+    if not decodeSuccess then
+        return nil
+    end
+    
+    return data
+end
+
+return HopAPIlocal function DecodeCrystalJob(crystalJob)
     if not crystalJob or type(crystalJob) ~= "string" then
         return nil
     end

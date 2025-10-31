@@ -27,14 +27,18 @@ local function DecodeBase64(encoded)
         return HttpService:Base64Decode(encoded)
     end)
     
-    if not success then
-        return nil
+    if success and decoded then
+        return decoded
     end
     
-    return decoded
+    return nil
 end
 
 local function DecodeCrystalJob(crystalJob)
+    if not crystalJob or type(crystalJob) ~= "string" then
+        return nil
+    end
+    
     if string.sub(crystalJob, 1, 8) ~= "Crystal_" then
         return crystalJob
     end
@@ -66,272 +70,106 @@ local function DecodeCrystalJob(crystalJob)
 end
 
 local function TeleportToJob(jobId)
-    if API.IsHopping then
+    if not jobId or API.IsHopping then
         return false
     end
     
     API.IsHopping = true
     
-    local success = pcall(function()
+    local success, result = pcall(function()
         local serverBrowser = ReplicatedStorage:FindFirstChild("__ServerBrowser")
         if serverBrowser then
-            serverBrowser:InvokeServer("teleport", jobId)
+            return serverBrowser:InvokeServer("teleport", jobId)
         end
+        return false
     end)
     
     task.wait(1)
     API.IsHopping = false
     
-    return success
+    return success and result
 end
 
 function API.Hop(category)
+    if not category or type(category) ~= "string" then
+        print("[HOP] Invalid category")
+        return false
+    end
+    
     print("[HOP] Starting:", category)
     
-    while true do
+    local retryCount = 0
+    local maxRetries = 999999
+    
+    while retryCount < maxRetries do
+        retryCount = retryCount + 1
+        
         local url = API.URL .. category .. "?api_key=" .. API.KEY
         
         local success, response = pcall(function()
             return game:HttpGet(url)
         end)
         
-        if not success then
-            print("[HOP] API Error")
+        if not success or not response then
+            print("[HOP] API Error, retry:", retryCount)
             task.wait(1)
-            continue
-        end
-        
-        local jsonSuccess, data = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        
-        if not jsonSuccess then
-            print("[HOP] JSON Error")
-            task.wait(1)
-            continue
-        end
-        
-        if data and data.Amount and data.Amount > 0 and data.JobId then
-            print("[HOP] Found", data.Amount, "jobs")
-            
-            for _, job in ipairs(data.JobId) do
-                if job.Jobid then
-                    local decodedJobId = DecodeCrystalJob(job.Jobid)
-                    
-                    if decodedJobId then
-                        print("[HOP] Category:", category)
-                        print("[HOP] Name:", job.name or "Unknown")
-                        print("[HOP] Players:", job.Players or "0/12")
-                        print("[HOP] Crystal:", job.Jobid)
-                        print("[HOP] Decoded:", decodedJobId)
-                        
-                        if TeleportToJob(decodedJobId) then
-                            print("[HOP] Success!")
-                            return true
-                        else
-                            print("[HOP] Failed, trying next...")
-                        end
-                    end
-                end
-            end
         else
-            print("[HOP] No jobs found")
-        end
-        
-        task.wait(1)
-    end
-end
-
-return APIlocal function p(q)
-    if string.sub(q, 1, 8) ~= "Crystal_" then
-        return q
-    end
-    
-    local r = string.sub(q, 9)
-    local n, s = k(r)
-    
-    if not n then
-        return nil
-    end
-    
-    local t = g(s)
-    
-    if #t < 32 then
-        t = t .. string.rep("0", 32 - #t)
-    end
-    
-    t = string.sub(t, 1, 32)
-    
-    local u = string.format("%s-%s-%s-%s-%s",
-        string.sub(t, 1, 8),
-        string.sub(t, 9, 12),
-        string.sub(t, 13, 16),
-        string.sub(t, 17, 20),
-        string.sub(t, 21, 32)
-    )
-    
-    return u
-end
-
-local function v(w)
-    if c.f then
-        return false
-    end
-    
-    c.f = true
-    
-    local n = pcall(function()
-        b:FindFirstChild("__ServerBrowser"):InvokeServer("teleport", w)
-    end)
-    
-    task.wait(1)
-    c.f = false
-    
-    return n
-end
-
-function c:k(x)
-    while true do
-        local y = self.d .. x .. "?api_key=" .. self.e
-        
-        local n, z = pcall(function()
-            return game:HttpGet(y)
-        end)
-        
-        if not n then
-            task.wait(1)
-            continue
-        end
-        
-        local success, A = pcall(function()
-            return a:JSONDecode(z)
-        end)
-        
-        if not success then
-            task.wait(1)
-            continue
-        end
-        
-        if A and A.Amount and A.Amount > 0 and A.JobId then
-            for _, B in ipairs(A.JobId) do
-                if B.Jobid then
-                    local C = p(B.Jobid)
-                    
-                    if C then
-                        if v(C) then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-        
-        task.wait(1)
-    end
-end
-
-return clocal function p(q)
-    if string.sub(q, 1, 8) ~= "Crystal_" then
-        return q
-    end
-    
-    local r = string.sub(q, 9)
-    local n, s = k(r)
-    
-    if not n then
-        return nil
-    end
-    
-    local t = g(s)
-    
-    if #t < 32 then
-        t = t .. string.rep("0", 32 - #t)
-    end
-    
-    t = string.sub(t, 1, 32)
-    
-    local u = string.format("%s-%s-%s-%s-%s",
-        string.sub(t, 1, 8),
-        string.sub(t, 9, 12),
-        string.sub(t, 13, 16),
-        string.sub(t, 17, 20),
-        string.sub(t, 21, 32)
-    )
-    
-    return u
-end
-
-local function v(w)
-    if c.f then
-        return false
-    end
-    
-    c.f = true
-    
-    local n = pcall(function()
-        b:FindFirstChild("__ServerBrowser"):InvokeServer("teleport", w)
-    end)
-    
-    task.wait(1)
-    c.f = false
-    
-    return n
-end
-
-function c:k(x)
-    print("[HOP] Starting search for:", x)
-    
-    while true do
-        local y = self.d .. x .. "?api_key=" .. self.e
-        
-        local n, z = pcall(function()
-            return game:HttpGet(y)
-        end)
-        
-        if not n then
-            print("[HOP] API Error, retrying...")
-            task.wait(1)
-            continue
-        end
-        
-        local success, A = pcall(function()
-            return a:JSONDecode(z)
-        end)
-        
-        if not success then
-            print("[HOP] JSON Error, retrying...")
-            task.wait(1)
-            continue
-        end
-        
-        if A and A.Amount and A.Amount > 0 and A.JobId then
-            print("[HOP] Found", A.Amount, "jobs in", x)
+            local jsonSuccess, data = pcall(function()
+                return HttpService:JSONDecode(response)
+            end)
             
-            for _, B in ipairs(A.JobId) do
-                if B.Jobid then
-                    local C = p(B.Jobid)
+            if not jsonSuccess or not data then
+                print("[HOP] JSON Error, retry:", retryCount)
+                task.wait(1)
+            else
+                if data and data.Amount and data.Amount > 0 and data.JobId and type(data.JobId) == "table" then
+                    print("[HOP] Found", data.Amount, "jobs")
                     
-                    if C then
-                        print("[HOP] Category:", x)
-                        print("[HOP] Crystal:", B.Jobid)
-                        print("[HOP] Decoded:", C)
-                        print("[HOP] Players:", B.Players or "Unknown")
-                        
-                        if v(C) then
-                            print("[HOP] Success!")
-                            return true
-                        else
-                            print("[HOP] Failed, trying next job...")
+                    local foundValidJob = false
+                    
+                    for index, job in ipairs(data.JobId) do
+                        if job and job.Jobid then
+                            local decodedJobId = DecodeCrystalJob(job.Jobid)
+                            
+                            if decodedJobId then
+                                print("[HOP] Job #" .. index)
+                                print("[HOP] Category:", category)
+                                print("[HOP] Name:", job.name or "Unknown")
+                                print("[HOP] Players:", job.Players or "0/12")
+                                
+                                if job.World then
+                                    print("[HOP] World:", job.World)
+                                end
+                                
+                                print("[HOP] Crystal:", job.Jobid)
+                                print("[HOP] Decoded:", decodedJobId)
+                                
+                                if TeleportToJob(decodedJobId) then
+                                    print("[HOP] Success!")
+                                    return true
+                                else
+                                    print("[HOP] Failed, trying next job...")
+                                end
+                                
+                                foundValidJob = true
+                            end
                         end
                     end
+                    
+                    if not foundValidJob then
+                        print("[HOP] No valid jobs, waiting...")
+                        task.wait(1)
+                    end
+                else
+                    print("[HOP] No jobs found, waiting...")
+                    task.wait(1)
                 end
             end
-        else
-            print("[HOP] No jobs found, waiting 1s...")
         end
-        
-        task.wait(1)
     end
+    
+    print("[HOP] Max retries reached")
+    return false
 end
 
-return c
+return API

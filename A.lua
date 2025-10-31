@@ -1,77 +1,41 @@
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
 
 local HopAPI = {}
-HopAPI.BaseURL = "http://fi7.bot-hosting.net:2022/api/"
-HopAPI.APIKey = "Cat"
+HopAPI.BaseURL = "http://fi7.bot-hosting.net:21258/api/"
+HopAPI.APIKey = "Crystal_838nejdi2"
 HopAPI.IsHopping = false
 HopAPI.PlaceId = game.PlaceId
 
-local function StringToHex(str)
-    local hex = ""
-    for i = 1, #str do
-        hex = hex .. string.format("%02x", string.byte(str, i))
-    end
-    return hex
-end
-
-local function Base64Decode(input)
-    input = string.gsub(input, "-", "+")
-    input = string.gsub(input, "_", "/")
-    
-    local padding = #input % 4
-    if padding > 0 then
-        input = input .. string.rep("=", 4 - padding)
-    end
-    
-    local success, result = pcall(function()
-        return HttpService:Base64Decode(input)
-    end)
-    
-    if not success then
-        return false, nil
-    end
-    
-    return true, result
-end
-
-local function DecodeCrystalID(crystalId)
+-- Decode Crystal ID to Job ID
+local function decodeCrystalID(crystalId)
     if not crystalId or type(crystalId) ~= "string" then
         return nil
     end
     
-    if string.sub(crystalId, 1, 8) ~= "Crystal_" then
-        return crystalId
+    -- Remove Crystal_ prefix
+    if string.find(crystalId, "Crystal_") or string.find(crystalId, "Crystall_") then
+        local hexPart = string.gsub(crystalId, "Crystal[l]?_", "")
+        
+        -- Convert hex to ASCII (Job ID)
+        local ascii = ""
+        for i = 1, #hexPart, 2 do
+            local hexByte = string.sub(hexPart, i, i + 1)
+            local byte = tonumber(hexByte, 16)
+            if byte then
+                ascii = ascii .. string.char(byte)
+            end
+        end
+        
+        return ascii
     end
     
-    local base64Part = string.sub(crystalId, 9)
-    local success, decoded = Base64Decode(base64Part)
-    
-    if not success or not decoded then
-        return nil
-    end
-    
-    local hexString = StringToHex(decoded)
-    
-    if #hexString < 32 then
-        hexString = hexString .. string.rep("0", 32 - #hexString)
-    end
-    
-    hexString = string.sub(hexString, 1, 32):lower()
-    
-    local uuid = string.format("%s-%s-%s-%s-%s",
-        string.sub(hexString, 1, 8),
-        string.sub(hexString, 9, 12),
-        string.sub(hexString, 13, 16),
-        string.sub(hexString, 17, 20),
-        string.sub(hexString, 21, 32)
-    )
-    
-    return uuid
+    return crystalId
 end
 
-local function TeleportToJob(jobId)
+-- Teleport to Job ID
+local function teleportToJob(jobId)
     if HopAPI.IsHopping then
         return false
     end
@@ -82,41 +46,35 @@ local function TeleportToJob(jobId)
     
     HopAPI.IsHopping = true
     
-    local success1 = pcall(function()
-        local serverBrowser = ReplicatedStorage:FindFirstChild("__ServerBrowser")
-        if serverBrowser then
-            serverBrowser:InvokeServer("teleport", jobId)
-        end
-    end)
-    
-    if success1 then
-        task.wait(2)
-        HopAPI.IsHopping = false
-        return true
-    end
-    
-    local success2 = pcall(function()
-        TeleportService:TeleportToPlaceInstance(HopAPI.PlaceId, jobId, game.Players.LocalPlayer)
+    local success = pcall(function()
+        TeleportService:TeleportToPlaceInstance(HopAPI.PlaceId, jobId, Players.LocalPlayer)
     end)
     
     task.wait(2)
     HopAPI.IsHopping = false
-    return success2
+    return success
 end
 
+-- Main Hop Function
 function HopAPI:Hop(input)
-    if string.sub(input, 1, 8) == "Crystal_" then
-        local decodedJobId = DecodeCrystalID(input)
+    if not input or input == "" then
+        return false
+    end
+    
+    -- Nếu là Crystal ID trực tiếp
+    if string.find(input, "Crystal_") or string.find(input, "Crystall_") then
+        local decodedJobId = decodeCrystalID(input)
         if decodedJobId then
-            return TeleportToJob(decodedJobId)
+            return teleportToJob(decodedJobId)
         end
         return false
     end
     
-    local category = string.lower(input)
+    -- Nếu có tên ví (fullmoon, mirage, etc)
+    local walletName = string.lower(input)
     
     while true do
-        local url = self.BaseURL .. category .. "?api_key=" .. self.APIKey
+        local url = self.BaseURL .. "?api_key=" .. self.APIKey
         
         local success, response = pcall(function()
             return game:HttpGet(url, true)
@@ -129,20 +87,26 @@ function HopAPI:Hop(input)
             
             if decodeSuccess and data and data.Amount and data.Amount > 0 and data.JobId then
                 for _, job in ipairs(data.JobId) do
-                    if job.Jobid then
-                        local decodedJobId = DecodeCrystalID(job.Jobid)
-                        if decodedJobId then
-                            if TeleportToJob(decodedJobId) then
-                                return true
+                    if job.Jobid and job.name then
+                        local jobName = string.lower(job.name)
+                        
+                        -- Check nếu tên server chứa tên ví
+                        if string.find(jobName, walletName) then
+                            local decodedJobId = decodeCrystalID(job.Jobid)
+                            
+                            if decodedJobId then
+                                if teleportToJob(decodedJobId) then
+                                    return true
+                                end
+                                task.wait(1)
                             end
-                            task.wait(1)
                         end
                     end
                 end
             end
         end
         
-        task.wait(2)
+        task.wait(5)
     end
 end
 

@@ -15,6 +15,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 World1 = game.PlaceId == 2753915549
 	World2 = game.PlaceId == 4442272183
 	World3 = game.PlaceId == 7449423635
+	getgenv().Team = "Pirates"
 	if getgenv().Team == "Marines" then
     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Marines")
 elseif getgenv().Team == "Pirates" then
@@ -85,11 +86,13 @@ local MF = Window:Add({
 	Banner = Banner.Update,
 	Columns = 1
 })
+
 getgenv().CrystalCfg = {
-    -- Weapon Settings
+
+    -- ⚔️ Weapon Settings
     ["Select Weapon"] = "Melee",
-    
-    -- Combat Settings
+
+    -- ⚔️ Combat Settings
     ["Fast Attack"] = true,
     ["Attack Player"] = true,
     ["Attack Mobs"] = true,
@@ -97,35 +100,43 @@ getgenv().CrystalCfg = {
     ["Turn On Haki"] = true,
     ["Turn on Race V3"] = false,
     ["Turn on Race V4"] = false,
-    
-    -- Farming Settings
+
+    -- 🌾 Farming Mode
     ["Select Farm"] = "Level",
     ["Start Farm method"] = false,
+
+    -- 🌾 Farm Level
     ["Select Mon"] = "",
     ["Auto Quest Mon"] = false,
     ["Start Kill Mon"] = false,
+
+    -- 🌾 Farm Near
     ["Set Farm Near"] = 100,
+
+    -- 🌾 Farm Material
     ["Select Material"] = "",
     ["Auto Quest Material"] = false,
     ["Start Farm Material"] = false,
+
+    -- 👑 Farm Boss
     ["Select Boss"] = "",
     ["Quest Boss"] = false,
     ["Start Kill Boss"] = false,
+
+    -- 🚀 Movement Settings (UI bạn có)
+    ["Use Portal Tween"] = true,
+    ["Use Teleport Distance"] = true,
+    ["Tween Speed"] = 350,
+    ["Teleport Distance"] = 150,
+
+    -- 🔄 Spin Position
+    ["Spin Position"] = false,
+    ["Spin Position Y"] = 30,
 }
 
 getgenv().Crystal = {
-    ["Accept Quest"] = true,
+    ["Accept Quest"] = true
 }
-
-getgenv().Team = "Pirates"
-
-getgenv().SpinPos = false
-
-getgenv().NotAutoEquip = false
-
-getgenv().noclip = false
-
-getgenv().noclipsetup = false
             function CheckQuest()
     local MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
     local team = tostring(game.Players.LocalPlayer.Team)
@@ -2206,11 +2217,12 @@ local function Attack(v)
     MonFarm = v.Name
     
     v.HumanoidRootPart.CanCollide = false
+    v.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
     v.HumanoidRootPart.Transparency = 1
     v.Humanoid.WalkSpeed = 0
     v.Humanoid.JumpPower = 0
     v.Head.CanCollide = false
-    
+    v.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame
     if Config.SpinPosEnabled and Pos then
         topos(Pos)
     else

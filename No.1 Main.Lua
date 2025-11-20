@@ -2796,75 +2796,6 @@ spawn(function()
 			end)
 		end
 	end)
-local a = S:Toggle({
-    Title = "Use Portal Tween",
-    Desc = "",
-    Value = true,
-    Side = "b",
-    Callback = function(value)
-        Config.UsePortalTween = value
-    end
-})
-
-local b = S:Toggle({
-    Title = "Use Teleport Distance",
-    Desc = "",
-    Side = "b",
-    Value = true,
-    Callback = function(value)
-        Config.UseTeleportDistance = value
-    end
-})
-
-local c = S:Toggle({
-    Title = "Spin Position",
-    Desc = "Enable spinning position mode",
-    Value = false,
-    Side = "b",
-    Callback = function(value)
-        Config.SpinPosEnabled = value
-        getgenv().SpinPos = value
-    end
-})
-
-local TweenSpeedSlider = S:Slider({
-    Title = "Tween Speed",
-    Desc = "",
-    Min = 50,
-    Max = 350,
-    Rounding = 0,
-    Value = 350,
-    Side = "b",
-    Callback = function(value)
-        Config.TweenSpeed = value
-    end
-})
-
-local TeleportDistanceSlider = S:Slider({
-    Title = "Teleport Distance",
-    Desc = "",
-    Min = 50,
-    Max = 200,
-    Rounding = 0,
-    Value = 150,
-    Side = "b",
-    Callback = function(value)
-        Config.TeleportDistance = value
-    end
-})
-
-local a = S:Slider({
-    Title = "Spin Position Y",
-    Desc = "Adjust Y height for spin position",
-    Min = 0,
-    Max = 100,
-    Rounding = 0,
-    Value = 30,
-    Side = "b",
-    Callback = function(value)
-        Config.SpinPosY = value
-    end
-})
 
 local SelectWeapon = {
     "Melee",
@@ -3838,6 +3769,49 @@ S:Toggle({
 			end)
 		end
 	end)
+	local a = S:Toggle({
+    Title = "Use Portal Tween",
+    Desc = "",
+    Value = true,
+    Side = "b",
+    Callback = function(value)
+        Config.UsePortalTween = value
+    end
+})
+
+local b = S:Toggle({
+    Title = "Use Teleport Distance",
+    Desc = "",
+    Side = "b",
+    Value = true,
+    Callback = function(value)
+        Config.UseTeleportDistance = value
+    end
+})
+
+local c = S:Toggle({
+    Title = "Spin Position",
+    Desc = "Enable spinning position mode",
+    Value = false,
+    Side = "b",
+    Callback = function(value)
+        Config.SpinPosEnabled = value
+        getgenv().SpinPos = value
+    end
+})
+
+local SpinPosYSlider = S:Slider({
+    Title = "Spin Position Y",
+    Desc = "Adjust Y height for spin position",
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Value = 30,
+    Side = "b",
+    Callback = function(value)
+        Config.SpinPosY = value
+    end
+})
 -- Main Farming
 local methodfarm = {"Level", "Bone", "Katakuri", "Kill Near"}
 local CakePos = CFrame.new(-2091.911865234375, 70.00884246826172, -12142.8359375)

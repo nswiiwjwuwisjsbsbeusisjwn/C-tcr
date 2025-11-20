@@ -2756,6 +2756,44 @@ getgenv().Click = function()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) 
 end
+spawn(function()
+		while task.wait() do
+			pcall(function()
+				if getgenv().CrystalCfg["Start Farm Material"] or getgenv().GetCoolShades or getgenv().GetBazooka or getgenv().GetPinkCoat or getgenv().GetMagmaBlaster or getgenv().GetSharkSaw or getgenv().GetMarineCoat or getgenv().GetDragonTrident or getgenv().GetPoleV1 or getgenv().GetSaber or getgenv().OneclickUpgradeRace or getgenv().AutoQuestWorld or getgenv().AutoNear or getgenv().CrystalCfg["Start Farm method"] or getgenv().StartFarmBerry or getgenv().GetWardens or getgenv().AutoFactory or getgenv().OneclickDoughking or getgenv().GetDarkFragmentorCoat or getgenv().KillZebraCaporKoko or getgenv().QuestBartilo or getgenv().StartFarmChest or getgenv().GetRengoku or getgenv().GetFlail or getgenv().GetSwanGlasses or getgenv().GetGravityBlade or getgenv().GetBlackSpikeyCoat or getgenv().GetLong or getgenv().CrystalCfg["Start Farm Material"] or getgenv().CrystalCfg["Start Kill Boss"] or getgenv().CrystalCfg["Start Farm Material"] or getgenv().FullyCyborg or getgenv().CrystalCfg["Auto Fully Raid"]  or _G.AutoFullyRaid then
+					if not plr.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
+						local Noclip = Instance.new("BodyVelocity")
+						Noclip.Name = "BodyClip"
+						Noclip.Parent = plr.Character.HumanoidRootPart
+						Noclip.MaxForce = Vector3.new(100000, 100000, 100000)
+						Noclip.Velocity = Vector3.new(0, 0, 0)
+					end
+					if not plr.Character:FindFirstChild('highlight') then
+						local Test = Instance.new('Highlight')
+						Test.Name = "highlight"
+						Test.Enabled = true
+						Test.FillColor = Color3.fromRGB(138, 43, 226)
+						Test.OutlineColor = Color3.fromRGB(255, 255, 255)
+						Test.FillTransparency = 0.5
+						Test.OutlineTransparency = 0.2
+						Test.Parent = plr.Character
+					end
+					for _, no in pairs(plr.Character:GetDescendants()) do
+						if no:IsA("BasePart") then
+							no.CanCollide = false
+						end
+					end
+				else
+					if plr.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
+						plr.Character.HumanoidRootPart:FindFirstChild("BodyClip"):Destroy()
+					end
+					if plr.Character:FindFirstChild('highlight') then
+						plr.Character:FindFirstChild('highlight'):Destroy()
+					end
+				end
+			end)
+		end
+	end)
+
 local SelectWeapon = {
     "Melee",
     "Sword",

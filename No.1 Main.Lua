@@ -1,4 +1,4 @@
----// Crystal Main Jna
+---// Crystal Main
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -64,9 +64,11 @@ local Banner = {
 	['Combat'] = 112935442242481,
 	['Update'] = 86844430363710,
 }
+local TitleHub = "No.1 Hub"
+local DescHub = "Remake Catdzs1vn"
 local Window = Cat:Window({
-	Title = "No.1 Hub",
-	Desc = "Remake Catdzs1vn",
+	Title = TitleHub,
+	Desc = DescHub,
 	IconTile = "111115552352248",
 	SizeUi = "520,340",
 	Theme = "104493731273844"
@@ -92,7 +94,7 @@ getgenv().CrystalCfg = {
     ["Attack Player"] = true,
     ["Attack Mobs"] = true,
     ["Bring Mob"] = true,
-    ["Auto Haki"] = true,
+    ["Turn On Haki"] = true,
     ["Turn on Race V3"] = false,
     ["Turn on Race V4"] = false,
     
@@ -103,13 +105,9 @@ getgenv().CrystalCfg = {
     ["Auto Quest Mon"] = false,
     ["Start Kill Mon"] = false,
     ["Set Farm Near"] = 100,
-    
-    -- Material Farming
     ["Select Material"] = "",
     ["Auto Quest Material"] = false,
     ["Start Farm Material"] = false,
-    
-    -- Boss Farming
     ["Select Boss"] = "",
     ["Quest Boss"] = false,
     ["Start Kill Boss"] = false,
@@ -2208,7 +2206,6 @@ local function Attack(v)
     if v.Humanoid.Health <= 0 then
         return
     end
-    
     EquipWeapon(getgenv().CrystalCfg["Select Weapon"])
     AutoHaki()
     topos(v.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
@@ -2218,8 +2215,11 @@ local function Attack(v)
     v.Humanoid.WalkSpeed = 0
     v.Humanoid.JumpPower = 0
     v.Head.CanCollide = false
+    v.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame
     PosMon = v.HumanoidRootPart.CFrame
     MonFarm = v.Name
+    
+    sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
 end
 	function AutoHaki()
   local player = game:GetService("Players").LocalPlayer
@@ -3578,7 +3578,199 @@ getgenv().Click = (c)
 end
 })
 
+S:Toggle({
+    Title = "Bring mob",
+    Desc = "",
+    Icon = "",
+    Value = true,
+    Side = "a",
+    Callback = function(c)
+        getgenv().CrystalCfg["Bring Mob"] = c
+    end
+})
+S:Slider({
+    Title = "Set Bring Mobs",
+    Desc = "",
+    Min = 1,
+    Max = 6,
+    Rounding = 0,
+    Value = 2,
+    Side = "a",
+    Callback = function(c)
+        getgenv().CrystalCfg["Max Bring Mobs"] = c
+    end
+})
 
+local stabilizedMobMonsters = {}
+
+local function SmoothPull(part, targetCFrame, speed)
+    local currentPos = part.Position
+    local targetPos = targetCFrame.Position
+    local newPos = currentPos + (targetPos - currentPos) * speed
+    part.CFrame = CFrame.new(newPos, targetPos)
+end
+
+local function LockPosition(part, targetPos)
+    part.CFrame = CFrame.new(targetPos)
+end
+
+local function CheckMonstersAlive(pos)
+    local count = 0
+    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+            if (v.HumanoidRootPart.Position - pos.Position).Magnitude <= 250 then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+local function IsPlayerNear(pos)
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        return (plr.Character.HumanoidRootPart.Position - pos.Position).Magnitude <= 250
+    end
+    return false
+end
+
+if not isnetworkowner then
+    isnetworkowner = function() return true end
+end
+
+spawn(function()
+    while task.wait() do
+        pcall(function()
+            if getgenv().CrystalCfg["Bring Mob"] and PosMon then
+                for monster, data in pairs(stabilizedMobMonsters) do
+                    local shouldRemove = false
+                    
+                    if not monster or not monster.Parent then
+                        shouldRemove = true
+                    elseif not monster:FindFirstChild("Humanoid") or not monster:FindFirstChild("HumanoidRootPart") then
+                        shouldRemove = true
+                    elseif monster.Humanoid.Health <= 0 then
+                        shouldRemove = true
+                    elseif tick() - data.LastUpdate > 2 then
+                        shouldRemove = true
+                    end
+                    
+                    if shouldRemove then
+                        stabilizedMobMonsters[monster] = nil
+                    end
+                end
+                
+                if CheckMonstersAlive(PosMon) == 0 then
+                    stabilizedMobMonsters = {}
+                end
+
+                local pulledCount = 0
+                for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                    if pulledCount >= getgenv().CrystalCfg["Max Bring Mobs"] then break end
+                    
+                    local isValid = (v.Name == MonFarm or v.Name == NameMon or v.Name == "Factory Staff") and 
+                        not string.find(v.Name, "Boss") and
+                        v.Name ~= "Ice Admiral" and v.Name ~= "Don Swan" and 
+                        v.Name ~= "Saber Expert" and v.Name ~= "Longma"
+                    
+                    local hasPart = v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Head")
+                    local isAlive = hasPart and v.Humanoid.Health > 0
+                    local inRange = hasPart and (v.HumanoidRootPart.Position - PosMon.Position).Magnitude <= 300
+                    local isNotGhost = hasPart and v.HumanoidRootPart.Anchored == false
+                    
+                    if isValid and hasPart and isAlive and inRange and isNotGhost and IsPlayerNear(PosMon) then
+                        if isnetworkowner(v.HumanoidRootPart) then
+                            pulledCount = pulledCount + 1
+                            v.HumanoidRootPart.CanCollide = false
+                            v.Head.CanCollide = false
+                            v.Humanoid.WalkSpeed = 0
+                            v.Humanoid.JumpPower = 0
+                            v.Humanoid:ChangeState(11)
+                            v.Humanoid.PlatformStand = true
+                            
+                            if v.Humanoid:FindFirstChild("Animator") then
+                                v.Humanoid.Animator:Destroy()
+                            end
+                            
+                            local distToPosMon = (v.HumanoidRootPart.Position - PosMon.Position).Magnitude
+                            
+                            if stabilizedMobMonsters[v] then
+                                LockPosition(v.HumanoidRootPart, PosMon.Position)
+                            else
+                                if distToPosMon > 400 then
+                                    v.HumanoidRootPart.CFrame = CFrame.new(PosMon.Position)
+                                else
+                                    SmoothPull(v.HumanoidRootPart, PosMon, 0.4)
+                                end
+                                
+                                if distToPosMon < 9 then
+                                    LockPosition(v.HumanoidRootPart, PosMon.Position)
+                                    stabilizedMobMonsters[v] = {
+                                        Position = PosMon.Position,
+                                        LastUpdate = tick(),
+                                        RockSpeedX = math.random(1, 3) * 0.05,
+                                        RockSpeedZ = math.random(1, 3) * 0.05,
+                                        FloatPhase = math.random(0, 2 * math.pi)
+                                    }
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                sethiddenproperty(plr, "SimulationRadius", math.huge)
+                plr.SimulationRadius = math.huge
+            end
+        end)
+    end
+end)
+
+spawn(function()
+    RunService.RenderStepped:Connect(function(deltaTime)
+        pcall(function()
+            if getgenv().CrystalCfg["Bring Mob"] then
+                for monster, data in pairs(stabilizedMobMonsters) do
+                    if monster and monster.Parent and monster:FindFirstChild("HumanoidRootPart") and monster.Humanoid.Health > 0 then
+                        local shakeIntensity = 0.5
+                        local time = tick()
+                        local offsetX = math.sin(time * data.RockSpeedX + data.FloatPhase) * shakeIntensity
+                        local offsetZ = math.cos(time * data.RockSpeedZ + data.FloatPhase) * shakeIntensity
+                        local shakeOffset = Vector3.new(offsetX, 0, offsetZ)
+                        LockPosition(monster.HumanoidRootPart, data.Position + shakeOffset)
+                        data.LastUpdate = tick()
+                    else
+                        stabilizedMobMonsters[monster] = nil
+                    end
+                end
+            end
+        end)
+    end)
+end)
+S:Toggle({
+    Title = "Auto Turn on Instinct",
+    Desc = "",
+    Icon = "",
+    Value = true,
+    Side = "a",
+    Callback = function(c)
+        getgenv().CrystalCfg["Turn On Instinct"] = c
+    end
+})
+spawn(function()
+while task.wait() do
+pcall(function()
+    if getgenv().CrystalCfg["Turn On Instinct"] then  
+        if game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") and game.Players.LocalPlayer.PlayerGui.ScreenGui:FindFirstChild("ImageLabel") then
+        else
+            wait(1)
+            game:service('VirtualUser'):CaptureController()
+            game:service('VirtualUser'):SetKeyDown('0x65')
+            wait(2)
+            game:service('VirtualUser'):SetKeyUp('0x65')
+        end
+    end
+end)
+end
+end)
 S:Toggle({
     Title = "Auto Turn on Buso",
     Desc = "",
@@ -3586,13 +3778,13 @@ S:Toggle({
     Value = true,
     Side = "a",
     Callback = function(c)
-        getgenv().CrystalCfg["Auto Haki"] = c
+        getgenv().CrystalCfg["Turn On Haki"] = c
     end
 })
 
 spawn(function()
     while task.wait(0.1) do
-        if getgenv().CrystalCfg["Auto Haki"] then
+        if getgenv().CrystalCfg["Turn On Haki"] then
             pcall(AutoHaki)
         end
     end
@@ -3613,7 +3805,7 @@ spawn(function()
     while task.wait() do
     pcall(function()
             if getgenv().CrystalCfg["Turn on Race V3"] then
-                game:GetService("ReplicatedStorage").Remotes.CommE:FireServer("ActivateAbility");
+                game:GetService("ReplicatedStorage").Remotes.CommE:FireServer("ActivateAbility")
             end
         end);
     end
@@ -3643,7 +3835,7 @@ S:Toggle({
 			end)
 		end
 	end)
-
+-- Main Farming
 local methodfarm = {"Level", "Bone", "Katakuri", "Kill Near"}
 local CakePos = CFrame.new(-2091.911865234375, 70.00884246826172, -12142.8359375)
 local BonePos = CFrame.new(-9506.234375, 172.130615234375, 6117.0771484375)
@@ -4540,3 +4732,4 @@ game:GetService("Players").PlayerRemoving:Connect(function(playerLeaving)
         if getgenv().noclipConnection then getgenv().noclipConnection:Disconnect() end
     end
 end)
+print("God Hub Main.lua")

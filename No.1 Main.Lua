@@ -3781,7 +3781,7 @@ S:Toggle({
 			end)
 		end
 	end)
-	local a = S:Toggle({
+	a = S:Toggle({
     Title = "Use Portal Tween",
     Desc = "",
     Value = true,
@@ -3791,7 +3791,7 @@ S:Toggle({
     end
 })
 
-local b = S:Toggle({
+b = S:Toggle({
     Title = "Use Teleport Distance",
     Desc = "",
     Side = "b",
@@ -3801,7 +3801,7 @@ local b = S:Toggle({
     end
 })
 
-local c = S:Toggle({
+c = S:Toggle({
     Title = "Spin Position",
     Desc = "Enable spinning position mode",
     Value = false,
@@ -3812,7 +3812,33 @@ local c = S:Toggle({
     end
 })
 
-local SpinPosYSlider = S:Slider({
+local TweenSpeedSlider = S:Slider({
+    Title = "Tween Speed",
+    Desc = "",
+    Min = 50,
+    Max = 350,
+    Rounding = 0,
+    Value = 350,
+    Side = "b",
+    Callback = function(value)
+        Config.TweenSpeed = value
+    end
+})
+
+local TeleportDistanceSlider = S:Slider({
+    Title = "Teleport Distance",
+    Desc = "",
+    Min = 50,
+    Max = 200,
+    Rounding = 0,
+    Value = 150,
+    Side = "b",
+    Callback = function(value)
+        Config.TeleportDistance = value
+    end
+})
+
+a = S:Slider({ 
     Title = "Spin Position Y",
     Desc = "Adjust Y height for spin position",
     Min = 0,
@@ -3824,6 +3850,7 @@ local SpinPosYSlider = S:Slider({
         Config.SpinPosY = value
     end
 })
+
 -- Main Farming
 local methodfarm = {"Level", "Bone", "Katakuri", "Kill Near"}
 local CakePos = CFrame.new(-2091.911865234375, 70.00884246826172, -12142.8359375)

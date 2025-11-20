@@ -2194,18 +2194,10 @@ function PlayerLowSever()
 end
 
 local function Attack(v)
-    if not v or not v.Parent then
-        return
-    end
-    if not v:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-    if not v:FindFirstChild("Humanoid") then
-        return
-    end
-    if v.Humanoid.Health <= 0 then
-        return
-    end
+    if not v or not v.Parent then return end
+    if not v:FindFirstChild("HumanoidRootPart") then return end
+    if not v:FindFirstChild("Humanoid") then return end
+    if v.Humanoid.Health <= 0 then return end
     
     EquipWeapon(getgenv().CrystalCfg["Select Weapon"])
     AutoHaki()
@@ -2214,7 +2206,6 @@ local function Attack(v)
     MonFarm = v.Name
     
     v.HumanoidRootPart.CanCollide = false
-    v.HumanoidRootPart.Size = Vector3.new(40, 40, 40)  
     v.HumanoidRootPart.Transparency = 1
     v.Humanoid.WalkSpeed = 0
     v.Humanoid.JumpPower = 0
@@ -2368,13 +2359,15 @@ local LocalPlayer = Players.LocalPlayer
 
 local Config = {
     TweenSpeed = 350,
-    TeleportDistance = 200,
-    PortalDistanceThreshold = 1,
+    TeleportDistance = 150,
+    PortalDistanceThreshold = 0.1,
     PositionTolerance = 20,
     UsePortalTween = true,
     UseTeleportDistance = true,
     SpinPosEnabled = false,
-    SpinPosY = 30
+    SpinPosY = 30,
+    SpinRadius = 20,
+    SpinSpeed = 0.1
 }
 
 local TweenState = {
@@ -2747,16 +2740,12 @@ spawn(function()
             spinIndex = (spinIndex + 1) % 4
             
             if spinIndex == 0 then
-                -- Điểm 1: Phía trước (Z-)
                 Pos = CFrame.new(centerPos.X, y, centerPos.Z - radius)
             elseif spinIndex == 1 then
-                -- Điểm 2: Bên trái (X-)
                 Pos = CFrame.new(centerPos.X - radius, y, centerPos.Z)
             elseif spinIndex == 2 then
-                -- Điểm 3: Phía sau (Z+)
                 Pos = CFrame.new(centerPos.X, y, centerPos.Z + radius)
             elseif spinIndex == 3 then
-                -- Điểm 4: Bên phải (X+)
                 Pos = CFrame.new(centerPos.X + radius, y, centerPos.Z)
             end
         else
@@ -2770,7 +2759,6 @@ spawn(function()
         end
     end
 end)
-
 spawn(function()
 		while task.wait() do
 			pcall(function()
@@ -2867,75 +2855,6 @@ spawn(function()
         end)
     end
 end)
-local a = S:Toggle({
-    Title = "Use Portal Tween",
-    Desc = "",
-    Value = true,
-    Side = "b",
-    Callback = function(value)
-        Config.UsePortalTween = value
-    end
-})
-
-local b = S:Toggle({
-    Title = "Use Teleport Distance",
-    Desc = "",
-    Side = "b",
-    Value = true,
-    Callback = function(value)
-        Config.UseTeleportDistance = value
-    end
-})
-
-local c = S:Toggle({
-    Title = "Spin Position",
-    Desc = "Enable spinning position mode",
-    Value = false,
-    Side = "b",
-    Callback = function(value)
-        Config.SpinPosEnabled = value
-        getgenv().SpinPos = value
-    end
-})
-
-local TweenSpeedSlider = S:Slider({
-    Title = "Tween Speed",
-    Desc = "",
-    Min = 50,
-    Max = 350,
-    Rounding = 0,
-    Value = 350,
-    Side = "b",
-    Callback = function(value)
-        Config.TweenSpeed = value
-    end
-})
-
-local TeleportDistanceSlider = S:Slider({
-    Title = "Teleport Distance",
-    Desc = "",
-    Min = 50,
-    Max = 200,
-    Rounding = 0,
-    Value = 150,
-    Side = "b",
-    Callback = function(value)
-        Config.TeleportDistance = value
-    end
-})
-
-local a = S:Slider({
-    Title = "Spin Position Y",
-    Desc = "Adjust Y height for spin position",
-    Min = 0,
-    Max = 100,
-    Rounding = 0,
-    Value = 30,
-    Side = "b",
-    Callback = function(value)
-        Config.SpinPosY = value
-    end
-})
 
 S:Toggle({
     Title = "Fast Attack",

@@ -2206,18 +2206,25 @@ local function Attack(v)
     if v.Humanoid.Health <= 0 then
         return
     end
+    
     EquipWeapon(getgenv().CrystalCfg["Select Weapon"])
     AutoHaki()
-    topos(v.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+    
+    PosMon = v.HumanoidRootPart.CFrame
+    MonFarm = v.Name
+    
     v.HumanoidRootPart.CanCollide = false
-    v.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+    v.HumanoidRootPart.Size = Vector3.new(40, 40, 40)  
     v.HumanoidRootPart.Transparency = 1
     v.Humanoid.WalkSpeed = 0
     v.Humanoid.JumpPower = 0
     v.Head.CanCollide = false
-    v.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame
-    PosMon = v.HumanoidRootPart.CFrame
-    MonFarm = v.Name
+    
+    if Config.SpinPosEnabled and Pos then
+        topos(Pos)
+    else
+        topos(v.HumanoidRootPart.CFrame * CFrame.new(0, Config.SpinPosY, 0))
+    end
     
     sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
 end
@@ -2347,6 +2354,12 @@ local function StoreFruit(fruitName)
         replicated.Remotes.CommF_:InvokeServer("StoreFruit", fruitName)
     end)
 end
+
+getgenv().Click = function()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) 
+end
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2355,7 +2368,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local Config = {
     TweenSpeed = 350,
-    TeleportDistance = 350,
+    TeleportDistance = 200,
     PortalDistanceThreshold = 1,
     PositionTolerance = 20,
     UsePortalTween = true,
@@ -2365,7 +2378,7 @@ local Config = {
 }
 
 local TweenState = {
-    IsTeleporting = false,
+    IsTeleporting = nill,
     CurrentTween = nil,
     LastTweenTime = 0,
     LastTargetPosition = nil,
@@ -2723,22 +2736,28 @@ getgenv().GetDistance = function(position)
     return (position - character.HumanoidRootPart.Position).Magnitude
 end
 
+local spinIndex = 0
 spawn(function()
-    while wait() do
-        if Config.SpinPosEnabled then
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local currentPos = character.HumanoidRootPart.Position
-                
-                Pos = CFrame.new(currentPos.X, currentPos.Y + Config.SpinPosY, currentPos.Z - 20)
-                wait(0.1)
-                Pos = CFrame.new(currentPos.X - 20, currentPos.Y + Config.SpinPosY, currentPos.Z)
-                wait(0.1)
-                Pos = CFrame.new(currentPos.X, currentPos.Y + Config.SpinPosY, currentPos.Z + 20)
-                wait(0.1)
-                Pos = CFrame.new(currentPos.X + 20, currentPos.Y + Config.SpinPosY, currentPos.Z)
-            else
-                Pos = CFrame.new(0, Config.SpinPosY, 0)
+    while wait(Config.SpinSpeed) do
+        if Config.SpinPosEnabled and PosMon then
+            local centerPos = PosMon.Position
+            local y = centerPos.Y + Config.SpinPosY
+            local radius = Config.SpinRadius
+            
+            spinIndex = (spinIndex + 1) % 4
+            
+            if spinIndex == 0 then
+                -- Điểm 1: Phía trước (Z-)
+                Pos = CFrame.new(centerPos.X, y, centerPos.Z - radius)
+            elseif spinIndex == 1 then
+                -- Điểm 2: Bên trái (X-)
+                Pos = CFrame.new(centerPos.X - radius, y, centerPos.Z)
+            elseif spinIndex == 2 then
+                -- Điểm 3: Phía sau (Z+)
+                Pos = CFrame.new(centerPos.X, y, centerPos.Z + radius)
+            elseif spinIndex == 3 then
+                -- Điểm 4: Bên phải (X+)
+                Pos = CFrame.new(centerPos.X + radius, y, centerPos.Z)
             end
         else
             local character = LocalPlayer.Character
@@ -2751,11 +2770,7 @@ spawn(function()
         end
     end
 end)
-getgenv().Click = function()
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) 
-end
+
 spawn(function()
 		while task.wait() do
 			pcall(function()
@@ -2900,9 +2915,9 @@ local TeleportDistanceSlider = S:Slider({
     Title = "Teleport Distance",
     Desc = "",
     Min = 50,
-    Max = 350,
+    Max = 200,
     Rounding = 0,
-    Value = 350,
+    Value = 150,
     Side = "b",
     Callback = function(value)
         Config.TeleportDistance = value

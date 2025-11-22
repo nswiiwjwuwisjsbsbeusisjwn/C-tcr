@@ -1507,9 +1507,9 @@ end)
 				return columnsFrames[1]
 			end
 			local sideLower = string.lower(tostring(side))
-			if sideLower == "a" or sideLower == "right" or side == 2 then
+			if sideLower == "b" or sideLower == "right" or side == 2 then
 				return columnsFrames[2]
-			elseif sideLower == "b" or sideLower == "left" or side == 1 then
+			elseif sideLower == "a" or sideLower == "left" or side == 1 then
 				return columnsFrames[1]
 			else
 				return columnsFrames[1]

@@ -137,9 +137,6 @@ getgenv().CrystalCfg = {
     ["Use Teleport Distance"] = true,
     ["Tween Speed"] = 350,
     ["Teleport Distance"] = 150,
-["Fast Attack"] = nil,
-["Attack Player"]  = nil,
-["Attack Mobs"] = nil,
     -- 🔄 Spin Position
     ["Spin Position"] = false,
     ["Spin Position Y"] = 30,

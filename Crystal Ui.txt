@@ -2542,7 +2542,7 @@ local player = LocalPlayer
 local cache = {
     lastClean = tick(),
     attackCount = 1,
-    lastAttackTime = 0,
+    lastAttackTime = 0.1,
     attackCooldown = 0.008
 }
 

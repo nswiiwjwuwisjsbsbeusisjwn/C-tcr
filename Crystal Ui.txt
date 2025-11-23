@@ -139,7 +139,7 @@ getgenv().CrystalCfg = {
     ["Teleport Distance"] = 150,
 ["Fast Attack"] = nil,
 ["Attack Player"]  = nil,
-["Attack Mobs"] = nil,
+["Attack Mobs"] = nil
     -- 🔄 Spin Position
     ["Spin Position"] = false,
     ["Spin Position Y"] = 30,
@@ -2532,6 +2532,8 @@ S:Toggle({
         getgenv().CrystalCfg["Attack Mobs"] = c
     end
 })
+
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2544,10 +2546,10 @@ local player = LocalPlayer
 local cache = {
     lastClean = tick(),
     attackCount = 1,
-    lastAttackTime = 0.1,
+    lastAttackTime = 0,
     attackCooldown = 0.008
 }
-local lastFastAttackState = false
+
 local rs = ReplicatedStorage
 local players = Players
 local client = LocalPlayer
@@ -3113,8 +3115,6 @@ end)
 pcall(function()
     StartFastAttack()
 end)
-
-
 
 S:Toggle({
     Title = "Auto Click",

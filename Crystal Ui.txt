@@ -2535,555 +2535,245 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
-local player = LocalPlayer
 
-local cache = {
+local FastAttackCache = {
     lastClean = tick(),
     attackCount = 1,
     lastAttackTime = 0,
-    attackCooldown = 0.008
+    attackCooldown = 0.003,
+    isAttacking = false
 }
 
-local rs = ReplicatedStorage
-local players = Players
-local client = LocalPlayer
-local Modules = ReplicatedStorage.Modules
-local Net = Modules.Net
-local Register_Hit = Net:WaitForChild("RE/RegisterHit")
-local Register_Attack = Net:WaitForChild("RE/RegisterAttack")
-local modules = rs:WaitForChild("Modules")
-local net = modules:WaitForChild("Net")
-local charFolder = Workspace:WaitForChild("Characters")
-local enemyFolder = Workspace:WaitForChild("Enemies")
-local playerFolder = Players
-local AttackModule = {}
-local RegisterAttack = net:WaitForChild("RE/RegisterAttack")
-local RegisterHit = net:WaitForChild("RE/RegisterHit")
+local FastAttackConnections = {
+    heartbeat = nil,
+    renderStepped = nil
+}
 
-local function FindRemotes()
-    return {
-        attack = RegisterAttack,
-        hit = RegisterHit
-    }
-end
-
-local remotes = FindRemotes()
-
-local Funcs = {}
-
-function GetAllBladeHits()
-    bladehits = {}
-    if not getgenv().CrystalCfg["Fast Attack"] then return bladehits end
-    if not getgenv().CrystalCfg["Attack Mobs"] then return bladehits end
-    
-    for _, v in pairs(Workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 
-        and (v.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 65 then
-            table.insert(bladehits, v)
-        end
-    end
-    return bladehits
-end
-
-function Getplayerhit()
-    bladehits = {}
-    if not getgenv().CrystalCfg["Fast Attack"] then return bladehits end
-    if not getgenv().CrystalCfg["Attack Player"] then return bladehits end
-    
-    for _, v in pairs(Workspace.Characters:GetChildren()) do
-        if v.Name ~= LocalPlayer.Name and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 
-        and (v.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 65 then
-            table.insert(bladehits, v)
-        end
-    end
-    return bladehits
-end
-
-function Funcs:Attack()
-    if not getgenv().CrystalCfg["Fast Attack"] then return end
-    
-    local bladehits = {}
-    for r,v in pairs(GetAllBladeHits()) do
-        table.insert(bladehits, v)
-    end
-    for r,v in pairs(Getplayerhit()) do
-        table.insert(bladehits, v)
-    end
-    if #bladehits == 0 then return end
-    local args = {
-        [1] = nil;
-        [2] = {},
-        [4] = "078da341"
-    }
-    for r, v in pairs(bladehits) do
-        if Register_Attack and Register_Hit then
-            Register_Attack:FireServer(0)
-            Register_Hit:FireServer(unpack(args))
-        end
-        if not args[1] then
-            args[1] = v.Head
-        end
-        args[2][r] = {
-            [1] = v,
-            [2] = v.HumanoidRootPart
+local function GetRemotes()
+    local success, result = pcall(function()
+        local modules = ReplicatedStorage:WaitForChild("Modules", 5)
+        if not modules then return nil end
+        
+        local net = modules:WaitForChild("Net", 5)
+        if not net then return nil end
+        
+        return {
+            attack = net:WaitForChild("RE/RegisterAttack", 5),
+            hit = net:WaitForChild("RE/RegisterHit", 5)
         }
-    end
-    Register_Hit:FireServer(unpack(args))
+    end)
+    
+    return success and result or nil
 end
 
-local function IsEntityAlive(entity)
-    if not entity then
-        return false
-    end
-    local humanoid = entity:FindFirstChild("Humanoid")
-    return humanoid and humanoid.Health > 0
-end
+local Remotes = GetRemotes()
 
-local function GetEnemiesInRange(character, range)
-    local enemies = Workspace.Enemies:GetChildren()
-    local players = Players:GetPlayers()
+local function GetFastAttackTargets()
+    if not getgenv().CrystalCfg["Fast Attack"] then 
+        return {} 
+    end
+    
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then 
+        return {} 
+    end
+    
     local targets = {}
-    local playerPos = character:GetPivot().Position
-    
-    if not getgenv().CrystalCfg["Fast Attack"] then return targets end
-    
-    if getgenv().CrystalCfg["Attack Mobs"] then
-        for _, enemy in ipairs(enemies) do
-            local rootPart = enemy:FindFirstChild("HumanoidRootPart")
-            if rootPart and IsEntityAlive(enemy) then
-                local distance = (rootPart.Position - playerPos).Magnitude
-                if distance <= range then
-                    table.insert(targets, enemy)
-                end
-            end
-        end
-    end
-    
-    if getgenv().CrystalCfg["Attack Player"] then
-        for _, otherPlayer in ipairs(players) do
-            if otherPlayer ~= player and otherPlayer.Character then
-                local rootPart = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if rootPart and IsEntityAlive(otherPlayer.Character) then
-                    local distance = (rootPart.Position - playerPos).Magnitude
-                    if distance <= range then
-                        table.insert(targets, otherPlayer.Character)
-                    end
-                end
-            end
-        end
-    end
-    
-    return targets
-end
-
-function AttackNoCoolDown()
-    if not getgenv().CrystalCfg["Fast Attack"] then return end
-    
-    local character = player.Character
-    if not character then
-        return
-    end
-    
-    if not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
-        return
-    end
-    local equippedWeapon = nil
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Tool") then
-            equippedWeapon = item
-            break
-        end
-    end
-    
-    if not equippedWeapon then
-        return
-    end
-    
-    local enemiesInRange = GetEnemiesInRange(character, 60)
-    if #enemiesInRange == 0 then
-        return
-    end
-    
-    local storage = ReplicatedStorage
-    local modules = storage:FindFirstChild("Modules")
-    if not modules then
-        return
-    end
-    
-    local attackEvent = storage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack")
-    local hitEvent = storage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit")
-    
-    if not attackEvent or not hitEvent then
-        return
-    end
-    
-    local targets, mainTarget = {}, nil
-    for _, enemy in ipairs(enemiesInRange) do
-        if not enemy:GetAttribute("IsBoat") then
-            local HitboxLimbs = {
-                "RightLowerArm",
-                "RightUpperArm",
-                "LeftLowerArm",
-                "LeftUpperArm",
-                "RightHand",
-                "LeftHand"
-            }
-            local head = enemy:FindFirstChild(HitboxLimbs[math.random(#HitboxLimbs)]) or enemy.PrimaryPart
-            if head then
-                table.insert(targets, {enemy, head})
-                mainTarget = head
-            end
-        end
-    end
-    
-    if not mainTarget then
-        return
-    end
-    
-    attackEvent:FireServer(0)
-    hitEvent:FireServer(mainTarget, targets)
-end
-
-function AttackModule:AttackEnemy(EnemyHead, Table)
-    if not getgenv().CrystalCfg["Fast Attack"] then return end
-    
-    if EnemyHead then
-        for i = 1, 3 do
-            RegisterAttack:FireServer(0)
-            RegisterAttack:FireServer(1)
-            RegisterAttack:FireServer(2)
-            RegisterAttack:FireServer(3)
-            RegisterHit:FireServer(EnemyHead, Table or {})
-        end
-    end
-end
-
-function AttackModule:AttackNearest()
-    if not getgenv().CrystalCfg["Fast Attack"] then return end
-    
-    local mon = {
-        nil,
-        {}
-    }
+    local playerPos = character.HumanoidRootPart.Position
+    local maxDistance = 65
     
     if getgenv().CrystalCfg["Attack Mobs"] then
-        local nearestEnemies = {}
-        for _, Enemy in enemyFolder:GetChildren() do
-            if Enemy:FindFirstChild("HumanoidRootPart", true) and client:DistanceFromCharacter(Enemy.HumanoidRootPart.Position) < 145 then
-                table.insert(nearestEnemies, {
-                    enemy = Enemy,
-                    root = Enemy:FindFirstChild("HumanoidRootPart"),
-                    distance = client:DistanceFromCharacter(Enemy.HumanoidRootPart.Position)
-                })
-            end
-        end
-        
-        table.sort(nearestEnemies, function(a, b)
-            return a.distance < b.distance
-        end)
-        
-        if #nearestEnemies > 0 then
-            mon[1] = nearestEnemies[1].root
+        for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+            local humanoid = enemy:FindFirstChild("Humanoid")
+            local root = enemy:FindFirstChild("HumanoidRootPart")
             
-            for i = 2, math.min(3, #nearestEnemies) do
-                table.insert(mon[2], {
-                    [1] = nearestEnemies[i].enemy,
-                    [2] = nearestEnemies[i].root
-                })
-            end
-            
-            self:AttackEnemy(unpack(mon))
-        end
-    end
-    
-    if getgenv().CrystalCfg["Attack Player"] then
-        local nearestPlayers = {}
-        for _, Player in playerFolder:GetChildren() do
-            if Player ~= client and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart", true) then
-                local distance = client:DistanceFromCharacter(Player.Character.HumanoidRootPart.Position)
-                if distance < 145 then
-                    table.insert(nearestPlayers, {
-                        player = Player,
-                        root = Player.Character:FindFirstChild("HumanoidRootPart"),
+            if humanoid and root and humanoid.Health > 0 then
+                local distance = (root.Position - playerPos).Magnitude
+                if distance <= maxDistance then
+                    table.insert(targets, {
+                        entity = enemy,
+                        root = root,
                         distance = distance
                     })
                 end
             end
         end
-        
-        table.sort(nearestPlayers, function(a, b)
-            return a.distance < b.distance
-        end)
-        
-        if #nearestPlayers > 0 then
-            local player = {
-                nearestPlayers[1].root,
-                {}
-            }
-            
-            for i = 2, math.min(3, #nearestPlayers) do
-                table.insert(player[2], {
-                    [1] = nearestPlayers[i].player,
-                    [2] = nearestPlayers[i].root
-                })
-            end
-            
-            self:AttackEnemy(unpack(player))
-        end
-    end
-end
-
-function AttackModule:BladeHits()
-    self:AttackNearest()
-end
-
-getgenv().GetDistance = function(position)
-    local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return math.huge
-    end
-    return (position - character.HumanoidRootPart.Position).Magnitude
-end
-
-getgenv().GetBladeHits = function()
-    local targets = {}
-    local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return targets
-    end
-
-    if not getgenv().CrystalCfg["Fast Attack"] then
-        return targets
-    end
-
-    local containers = {}
-    
-    if getgenv().CrystalCfg["Attack Mobs"] then
-        if Workspace:FindFirstChild("Enemies") then
-            containers[#containers + 1] = Workspace.Enemies
-        end
-        if Workspace:FindFirstChild("Mobs") then
-            containers[#containers + 1] = Workspace.Mobs
-        end
     end
     
     if getgenv().CrystalCfg["Attack Player"] then
-        if Workspace:FindFirstChild("Characters") then
-            containers[#containers + 1] = Workspace.Characters
-        end
-        if Workspace:FindFirstChild("Players") then
-            containers[#containers + 1] = Workspace.Players
-        end
-        
-        local success, players = pcall(function()
-            return Players:GetPlayers()
-        end)
-        if success then
-            for _, player in pairs(players) do
-                if player ~= LocalPlayer and player.Character then
-                    if player.Character:FindFirstChild("HumanoidRootPart") and IsEntityAlive(player.Character) then
-                        local distance = getgenv().GetDistance(player.Character.HumanoidRootPart.Position)
-                        if distance < 145 then
-                            targets[#targets + 1] = {Entity = player.Character, Distance = distance}
-                        end
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and root and humanoid.Health > 0 then
+                    local distance = (root.Position - playerPos).Magnitude
+                    if distance <= maxDistance then
+                        table.insert(targets, {
+                            entity = player.Character,
+                            root = root,
+                            distance = distance
+                        })
                     end
                 end
             end
         end
     end
-
-    for _, container in ipairs(containers) do
-        if container then
-            for _, entity in pairs(container:GetChildren()) do
-                if entity:IsA("Model") and entity.Name ~= LocalPlayer.Name then
-                    if entity:FindFirstChild("HumanoidRootPart") and IsEntityAlive(entity) and not entity:GetAttribute("IsBoat") then
-                        local distance = getgenv().GetDistance(entity.HumanoidRootPart.Position)
-                        if distance < 145 then
-                            targets[#targets + 1] = {Entity = entity, Distance = distance}
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    table.sort(targets, function(a, b)
-        return a.Distance < b.Distance
+    
+    table.sort(targets, function(a, b) 
+        return a.distance < b.distance 
     end)
     
     local result = {}
-    for i = 1, math.min(#targets, 3) do
-        result[#result + 1] = targets[i].Entity
+    for i = 1, math.min(3, #targets) do
+        table.insert(result, targets[i].entity)
     end
+    
     return result
 end
 
 local function CleanEffects()
-    if tick() - cache.lastClean < 0.001 then
-        return
+    if tick() - FastAttackCache.lastClean < 0.1 then 
+        return 
     end
-    cache.lastClean = tick()
-
+    
+    FastAttackCache.lastClean = tick()
+    
     pcall(function()
         local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
         if worldOrigin then
             for _, v in pairs(worldOrigin:GetChildren()) do
-                if v.Name:match("CurvedRing") or v.Name:match("SlashHit") or 
-                   v.Name:match("SwordSlash") or v.Name:match("SlashTail") or 
+                if v.Name:match("CurvedRing") or 
+                   v.Name:match("SlashHit") or 
+                   v.Name:match("SwordSlash") or 
+                   v.Name:match("SlashTail") or 
                    v.Name:match("Sounds") then
                     v:Destroy()
                 end
             end
         end
-        
-        for _, v in pairs(Workspace:GetChildren()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Sound") then
-                v:Destroy()
-            end
-        end
     end)
 end
 
-getgenv().EnhancedAttack = function()
-    if not getgenv().CrystalCfg["Fast Attack"] then
-        return
+local function PerformFastAttack()
+    if not getgenv().CrystalCfg["Fast Attack"] then 
+        return 
     end
-
+    
     local currentTime = tick()
-    if currentTime - cache.lastAttackTime < cache.attackCooldown then
+    if currentTime - FastAttackCache.lastAttackTime < FastAttackCache.attackCooldown then
         return
     end
-    cache.lastAttackTime = currentTime
-
+    FastAttackCache.lastAttackTime = currentTime
+    
+    local targets = GetFastAttackTargets()
+    if #targets == 0 then 
+        return 
+    end
+    
     local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-
-    local equippedWeapon = nil
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Tool") then
-            equippedWeapon = item
-            break
-        end
-    end
-
-    local enemies = getgenv().GetBladeHits()
-    if #enemies == 0 then
-        return
-    end
-
-    if equippedWeapon and equippedWeapon:FindFirstChild("LeftClickRemote") then
-        for _, enemy in ipairs(enemies) do
-            if enemy:FindFirstChild("HumanoidRootPart") then
-                local direction = (enemy.HumanoidRootPart.Position - character:GetPivot().Position).Unit
+    if not character then return end
+    
+    local weapon = character:FindFirstChildOfClass("Tool")
+    
+    if weapon and weapon:FindFirstChild("LeftClickRemote") then
+        for _, enemy in ipairs(targets) do
+            local root = enemy:FindFirstChild("HumanoidRootPart")
+            if root then
+                local direction = (root.Position - character.HumanoidRootPart.Position).Unit
+                
                 for i = 1, 2 do
                     pcall(function()
-                        equippedWeapon.LeftClickRemote:FireServer(direction, cache.attackCount)
+                        weapon.LeftClickRemote:FireServer(direction, FastAttackCache.attackCount)
                     end)
-                    cache.attackCount = (cache.attackCount % 500) + 1
+                    FastAttackCache.attackCount = (FastAttackCache.attackCount % 500) + 1
                 end
             end
         end
-    elseif remotes.attack and remotes.hit then
-        local targets = {}
+    elseif Remotes and Remotes.attack and Remotes.hit then
         local mainTarget = nil
-        local playerPos = character:GetPivot().Position
-
-        for _, enemy in ipairs(enemies) do
-            local head = enemy:FindFirstChild("Head") or enemy:FindFirstChild("HumanoidRootPart")
-            if head and (playerPos - head.Position).Magnitude <= 145 then
-                if mainTarget == nil then
+        local hitTable = {}
+        
+        for _, enemy in ipairs(targets) do
+            local head = enemy:FindFirstChild("Head") or 
+                        enemy:FindFirstChild("HumanoidRootPart")
+            
+            if head then
+                if not mainTarget then
                     mainTarget = head
                 end
-                table.insert(targets, {enemy, head})
+                table.insert(hitTable, {enemy, head})
             end
         end
-
-        if mainTarget and #targets > 0 then
-            for j = 1, 2 do
-                for i = 0, 3 do
-                    pcall(function()
-                        remotes.attack:FireServer(i)
-                    end)
-                end
-                
+        
+        if mainTarget and #hitTable > 0 then
+            for i = 0, 3 do
                 pcall(function()
-                    remotes.hit:FireServer(mainTarget, targets)
+                    Remotes.attack:FireServer(i)
                 end)
             end
+            
+            pcall(function()
+                Remotes.hit:FireServer(mainTarget, hitTable)
+            end)
         end
     end
     
     CleanEffects()
 end
 
-function NormalAttack()
-    AttackModule:BladeHits()
-end
-
-getgenv().Attack = function()
-    if getgenv().CrystalCfg["Fast Attack"] then
-        getgenv().EnhancedAttack()
+local function StopFastAttack()
+    if FastAttackConnections.heartbeat then
         pcall(function()
-            Funcs:Attack()
+            FastAttackConnections.heartbeat:Disconnect()
         end)
-    else
-        AttackModule:BladeHits()
+        FastAttackConnections.heartbeat = nil
     end
-end
-
-CameraShakerR = require(ReplicatedStorage.Util.CameraShaker)
-CameraShakerR:Stop()
-
-local function AutoAttackLoop()
-    if getgenv().CrystalCfg["Fast Attack"] then
-        pcall(getgenv().Attack)
+    
+    if FastAttackConnections.renderStepped then
+        pcall(function()
+            FastAttackConnections.renderStepped:Disconnect()
+        end)
+        FastAttackConnections.renderStepped = nil
     end
+    
+    FastAttackCache.isAttacking = false
 end
-
-local attackConnection
-local cleanConnection
 
 local function StartFastAttack()
-    if attackConnection then
-        pcall(function()
-            attackConnection:Disconnect()
-        end)
+    StopFastAttack()
+    
+    if not getgenv().CrystalCfg["Fast Attack"] then
+        return
     end
-    if cleanConnection then
-        pcall(function()
-            cleanConnection:Disconnect()
-        end)
-    end
-
-    if getgenv().CrystalCfg["Fast Attack"] then
-        attackConnection = RunService.Heartbeat:Connect(function()
-            pcall(AutoAttackLoop)
-            pcall(AttackNoCoolDown)
-            pcall(function()
-                Funcs:Attack()
-            end)
-        end)
+    
+    FastAttackCache.isAttacking = true
+    
+    FastAttackConnections.heartbeat = RunService.Heartbeat:Connect(function()
+        if not getgenv().CrystalCfg["Fast Attack"] then
+            StopFastAttack()
+            return
+        end
         
-        cleanConnection = RunService.RenderStepped:Connect(function()
-            pcall(CleanEffects)
-        end)
-    end
+        pcall(PerformFastAttack)
+    end)
+    
+    FastAttackConnections.renderStepped = RunService.RenderStepped:Connect(function()
+        if not getgenv().CrystalCfg["Fast Attack"] then
+            StopFastAttack()
+            return
+        end
+        
+        pcall(CleanEffects)
+    end)
 end
 
-getgenv().FastattackNormal = AttackModule.BladeHits
-getgenv().FastattackBladeHits = AttackModule.BladeHits
+local lastFastAttackState = false
 
-pcall(function()
-    Debris:AddItem(script, 0)
-end)
-
-spawn(function()
-    while wait(1) do
+task.spawn(function()
+    while task.wait(0.5) do
         local currentState = getgenv().CrystalCfg["Fast Attack"]
         
         if currentState ~= lastFastAttackState then
@@ -3092,26 +2782,21 @@ spawn(function()
             if currentState then
                 StartFastAttack()
             else
-                if attackConnection then
-                    pcall(function()
-                        attackConnection:Disconnect()
-                    end)
-                    attackConnection = nil
-                end
-                if cleanConnection then
-                    pcall(function()
-                        cleanConnection:Disconnect()
-                    end)
-                    cleanConnection = nil
-                end
+                StopFastAttack()
             end
         end
     end
 end)
 
-pcall(function()
+if getgenv().CrystalCfg["Fast Attack"] then
     StartFastAttack()
+end
+
+pcall(function()
+    local CameraShaker = require(ReplicatedStorage.Util.CameraShaker)
+    CameraShaker:Stop()
 end)
+
 
 S:Toggle({
     Title = "Auto Click",

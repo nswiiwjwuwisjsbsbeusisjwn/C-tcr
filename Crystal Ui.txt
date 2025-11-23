@@ -14,10 +14,10 @@ local plr = LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local Character = plr.Character
 local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
-                   
-World1 = game.PlaceId == 2753915549
-	World2 = game.PlaceId == 4442272183
-	World3 = game.PlaceId == 7449423635
+                   local replicated = rs
+local World1 = game.PlaceId == 2753915549
+local World2 = game.PlaceId == 4442272183
+local World3 = game.PlaceId == 7449423635
 	getgenv().Team = "Pirates"
 	if getgenv().Team == "Marines" then
     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Marines")
@@ -1974,7 +1974,7 @@ local Config = {
 }
 
 local TweenState = {
-    IsTeleporting = nill,
+    IsTeleporting = nil,
     CurrentTween = nil,
     LastTweenTime = 0,
     LastTargetPosition = nil,
@@ -3082,7 +3082,7 @@ pcall(function()
     Debris:AddItem(script, 0)
 end)
 
-Spawn(function()
+spawn(function()
     while wait(1) do
         local currentState = getgenv().CrystalCfg["Fast Attack"]
         
@@ -3494,7 +3494,7 @@ MF:Toggle({
     end
 })
 
-Spawn(function()
+spawn(function()
     while wait(1) do
         if getgenv().CrystalCfg["Select Farm"] == "Level" and getgenv().CrystalCfg["Start Farm method"] then
             pcall(function()
@@ -3608,7 +3608,7 @@ Spawn(function()
     end
 end)
 
-Spawn(function()
+spawn(function()
     while task.wait(0.1) do
         if getgenv().CrystalCfg["Select Farm"] == "Katakuri" and getgenv().CrystalCfg["Start Farm method"] and World3 then
             pcall(function()
@@ -3712,7 +3712,7 @@ Spawn(function()
     end
 end)
 
-Spawn(function()
+spawn(function()
     while wait(1) do
         if getgenv().CrystalCfg["Select Farm"] == "Bone" and getgenv().CrystalCfg["Start Farm method"] and World3 then
             pcall(function()
@@ -3789,7 +3789,7 @@ Spawn(function()
     end
 end)
 
-Spawn(function()
+spawn(function()
     while wait(1) do
         if getgenv().CrystalCfg["Select Farm"] == "Kill Near" and getgenv().CrystalCfg["Start Farm method"] then
             pcall(function()
@@ -4143,7 +4143,7 @@ MF:Toggle({
 
 MF:Toggle({
     Title = "Start Kill Mon",
-    Desc = "Auto Kill Mon When Spawn",
+    Desc = "Auto Kill Mon When spawn",
     Icon = "rbxassetid://18558566660",
     Value = false,
     Side = "a",

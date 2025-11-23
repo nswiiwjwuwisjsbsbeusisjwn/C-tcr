@@ -2530,7 +2530,229 @@ S:Toggle({
         getgenv().CrystalCfg["Attack Mobs"] = c
     end
 })
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
 
+local LocalPlayer = Players.LocalPlayer
+local player = LocalPlayer
+
+local cache = {
+    lastClean = tick(),
+    attackCount = 1,
+    lastAttackTime = 0,
+    attackCooldown = 0.006
+}
+
+local rs = ReplicatedStorage
+local Modules = rs.Modules
+local Net = Modules.Net
+local Register_Hit = Net:WaitForChild("RE/RegisterHit")
+local Register_Attack = Net:WaitForChild("RE/RegisterAttack")
+local charFolder = Workspace:WaitForChild("Characters")
+local enemyFolder = Workspace:WaitForChild("Enemies")
+
+local remotes = {
+    attack = Register_Attack,
+    hit = Register_Hit
+}
+
+local attackConnection
+local cleanConnection
+local lastFastAttackState = false
+
+local function IsEntityAlive(entity)
+    if not entity then return false end
+    local humanoid = entity:FindFirstChild("Humanoid")
+    return humanoid and humanoid.Health > 0
+end
+
+getgenv().GetDistance = function(position)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return math.huge
+    end
+    return (position - character.HumanoidRootPart.Position).Magnitude
+end
+
+getgenv().GetBladeHits = function()
+    local targets = {}
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not getgenv().CrystalCfg["Fast Attack"] then
+        return targets
+    end
+
+    local containers = {}
+    
+    if getgenv().CrystalCfg["Attack Mobs"] then
+        if enemyFolder then
+            containers[#containers + 1] = enemyFolder
+        end
+    end
+    
+    if getgenv().CrystalCfg["Attack Player"] then
+        if charFolder then
+            containers[#containers + 1] = charFolder
+        end
+        
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                if hrp and IsEntityAlive(p.Character) then
+                    local distance = getgenv().GetDistance(hrp.Position)
+                    if distance < 145 then
+                        targets[#targets + 1] = {Entity = p.Character, Distance = distance}
+                    end
+                end
+            end
+        end
+    end
+
+    for _, container in ipairs(containers) do
+        for _, entity in pairs(container:GetChildren()) do
+            if entity:IsA("Model") and entity.Name ~= LocalPlayer.Name then
+                local hrp = entity:FindFirstChild("HumanoidRootPart")
+                if hrp and IsEntityAlive(entity) and not entity:GetAttribute("IsBoat") then
+                    local distance = getgenv().GetDistance(hrp.Position)
+                    if distance < 145 then
+                        targets[#targets + 1] = {Entity = entity, Distance = distance}
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(targets, function(a, b)
+        return a.Distance < b.Distance
+    end)
+    
+    local result = {}
+    for i = 1, math.min(#targets, 3) do
+        result[#result + 1] = targets[i].Entity
+    end
+    return result
+end
+
+local function CleanEffects()
+    if tick() - cache.lastClean < 0.001 then return end
+    cache.lastClean = tick()
+
+    pcall(function()
+        local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
+        if worldOrigin then
+            for _, v in pairs(worldOrigin:GetChildren()) do
+                if v.Name:match("CurvedRing") or v.Name:match("SlashHit") or 
+                   v.Name:match("SwordSlash") or v.Name:match("SlashTail") or 
+                   v.Name:match("Sounds") then
+                    v:Destroy()
+                end
+            end
+        end
+        
+        for _, v in pairs(Workspace:GetChildren()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Sound") then
+                v:Destroy()
+            end
+        end
+    end)
+end
+
+getgenv().EnhancedAttack = function()
+    if not getgenv().CrystalCfg["Fast Attack"] then return end
+
+    local currentTime = tick()
+    if currentTime - cache.lastAttackTime < cache.attackCooldown then return end
+    cache.lastAttackTime = currentTime
+
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local enemies = getgenv().GetBladeHits()
+    if #enemies == 0 then return end
+
+    local targets = {}
+    local mainTarget = nil
+    local playerPos = character:GetPivot().Position
+
+    for _, enemy in ipairs(enemies) do
+        local head = enemy:FindFirstChild("Head") or enemy:FindFirstChild("HumanoidRootPart")
+        if head and (playerPos - head.Position).Magnitude <= 145 then
+            if mainTarget == nil then
+                mainTarget = head
+            end
+            table.insert(targets, {enemy, head})
+        end
+    end
+
+    if mainTarget and #targets > 0 then
+        for j = 1, 2 do
+            for i = 0, 3 do
+                pcall(function()
+                    remotes.attack:FireServer(i)
+                end)
+            end
+            
+            pcall(function()
+                remotes.hit:FireServer(mainTarget, targets)
+            end)
+        end
+    end
+    
+    CleanEffects()
+end
+
+local CameraShakerR = require(ReplicatedStorage.Util.CameraShaker)
+CameraShakerR:Stop()
+
+local function StartFastAttack()
+    if attackConnection then
+        pcall(function() attackConnection:Disconnect() end)
+    end
+    if cleanConnection then
+        pcall(function() cleanConnection:Disconnect() end)
+    end
+
+    if getgenv().CrystalCfg["Fast Attack"] then
+        attackConnection = RunService.Heartbeat:Connect(function()
+            pcall(getgenv().EnhancedAttack)
+        end)
+        
+        cleanConnection = RunService.RenderStepped:Connect(function()
+            pcall(CleanEffects)
+        end)
+    end
+end
+
+pcall(function()
+    Debris:AddItem(script, 0)
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        local currentState = getgenv().CrystalCfg["Fast Attack"]
+        
+        if currentState ~= lastFastAttackState then
+            lastFastAttackState = currentState
+            
+            if currentState then
+                StartFastAttack()
+            else
+                if attackConnection then
+                    pcall(function() attackConnection:Disconnect() end)
+                    attackConnection = nil
+                end
+                if cleanConnection then
+                    pcall(function() cleanConnection:Disconnect() end)
+                    cleanConnection = nil
+                end
+            end
+        end
+    end
+end)
+
+pcall(StartFastAttack)
 
 
 S:Toggle({

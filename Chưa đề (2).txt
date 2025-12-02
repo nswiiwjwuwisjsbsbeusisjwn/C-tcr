@@ -12,7 +12,7 @@ if not verifyAuth() then return end
 
 local function verifySource()
     local validRepos = {
-        ["Catdzs1tg"] = true,
+        ["nswiiwjwuwisjsbsbeusisjwn"] = true,
     }
     
     local source = getgenv().RepoSource or ""

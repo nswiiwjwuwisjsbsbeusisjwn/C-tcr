@@ -1,10 +1,18 @@
-getgenv().__AUTH_KEY__ = "AuzuraUI_" .. game:GetService("RbxAnalyticsService"):GetClientId()
-
 local function verifyAuth()
-    if not getgenv().__AUTH_KEY__ then
-        game.Players.LocalPlayer:Kick("Check AUTH KEY  [Github: Catdzs1tg - discord: catdzs1vn please don't skid Ui]")
+    local authKey = getgenv().__AUTH_KEY__
+    local hwid = getgenv().__HWID__
+    
+    if not authKey or not hwid then
+        game.Players.LocalPlayer:Kick("Check AUTH KEY [Github: Catdzs1tg - discord: catdzs1vn please don't skid Ui]")
         return false
     end
+    
+    local expectedKey = "AuzuraUI_" .. hwid
+    if authKey ~= expectedKey then
+        game.Players.LocalPlayer:Kick("Invalid AUTH KEY [Github: Catdzs1tg - discord: catdzs1vn please don't skid Ui]")
+        return false
+    end
+    
     return true
 end
 
@@ -26,6 +34,31 @@ local function verifySource()
 end
 
 if not verifySource() then return end
+
+local function verifyGitHubName()
+    local scriptSource = debug.getinfo(2, "S").source
+    
+    local validGitHubNames = {
+        "nswiiwjwuwisjsbsbeusisjwn"
+    }
+    
+    local foundValid = false
+    for _, name in ipairs(validGitHubNames) do
+        if string.find(scriptSource, name) then
+            foundValid = true
+            break
+        end
+    end
+    
+    if not foundValid then
+        game.Players.LocalPlayer:Kick("⚠️ Invalid GitHub Source [Github: Catdzs1tg - discord: catdzs1vn please don't skid Ui]")
+        return false
+    end
+    
+    return true
+end
+
+if not verifyGitHubName() then return end
 
 local Cat = {}
 
